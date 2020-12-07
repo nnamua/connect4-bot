@@ -1,0 +1,113 @@
+import os, discord, sys, asyncio
+
+from dotenv import load_dotenv
+from discord.ext import commands
+from Game import Game
+
+load_dotenv()
+token = os.getenv("DISCORD_TOKEN")
+
+bot = commands.Bot(command_prefix="-")
+
+number_emojis = [ "1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣" ]
+games = []
+
+@bot.event
+async def on_ready():
+    print(f"Bot online with id={bot.user.id}.")
+
+@bot.command(name="start", help="Starts a game of connect 4.")
+async def start(ctx):
+    msg = ctx.message
+    author = msg.author
+    channel = msg.channel
+
+    game = Game()
+    game.yellow_player = author
+    game.channel = channel
+    games.append(game)
+
+    await draw_game(game)
+
+@bot.event
+async def on_reaction_add(reaction, user):
+    # Ignore own reactions
+    if user.id == bot.user.id:
+        return
+
+    message = reaction.message
+    game = get_game(message)
+    num = get_input(reaction)
+    # Check if reaction is valid and belongs to a valid game
+    if game != None and num != -1:
+        # Check if its the users turn, and if yes, place the stone
+        if game.is_user_turn(user):
+            game.place(num)
+            if game.check_win():
+                await draw_winscreen(game)
+                try:
+                    del games[games.index(game)]
+                except:
+                    pass
+            else:
+                await draw_game(game)
+        
+
+    await reaction.remove(user)
+
+async def draw_winscreen(game):
+    msg = "Player " + game.get_winner() + " has won! :tada:\n\n"
+    msg += game_string(game)
+
+    await game.message.edit(content=msg)
+    await game.message.clear_reactions()
+
+async def draw_game(game):
+    msg = "Waiting for " + game.get_player() + "'s ("
+    if game.is_red_turn():
+        msg += ":red_circle:"
+    else:
+        msg += ":yellow_circle:"
+    msg += ")move ...\n\n"
+    msg += game_string(game)
+
+    if game.message == None:
+        message = await game.channel.send(msg)
+        game.message = message
+        for emoji in number_emojis:
+            await message.add_reaction(emoji)
+    else:
+        await game.message.edit(content=msg)
+
+
+def game_string(game):
+    string = ""
+    for y in range(game.height):
+        line = ""
+        for x in range(game.width):
+            if game.is_red(x,y):
+                line += ":red_circle:"
+            elif game.is_yellow(x,y):
+                line += ":yellow_circle:"
+            else:
+                line += ":white_circle:"
+            line += " " * 7
+        string += line + "\n"
+    return string
+
+
+def get_game(message):
+    for game in games:
+        if message.id == game.message.id:
+            return game
+    return None
+
+def get_input(reaction):
+    for i in range(len(number_emojis)):
+        if number_emojis[i] == reaction.emoji:
+            return i
+    return -1
+
+
+bot.run(token)
+
