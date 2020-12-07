@@ -1,5 +1,0 @@
-./Controller.py: 1: ./Controller.py: import: not found
-from: can't read /var/mail/dotenv
-from: can't read /var/mail/discord.ext
-from: can't read /var/mail/Game
-./Controller.py: 8: ./Controller.py: Syntax error: "(" unexpected
