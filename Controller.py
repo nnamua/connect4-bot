@@ -57,6 +57,12 @@ async def on_reaction_add(reaction, user):
                     del games[games.index(game)]
                 except:
                     pass
+            elif game.check_draw():
+                await draw_remisscreen(game)
+                try:
+                    del games[games.index(game)]
+                except:
+                    pass
             else:
                 await draw_game(game)
         
@@ -65,6 +71,13 @@ async def on_reaction_add(reaction, user):
 
 async def draw_winscreen(game):
     msg = "Player " + game.get_winner() + " has won! :tada: (" + game.get_loser() + " has lost..)\n\n"
+    msg += game_string(game)
+
+    await game.message.edit(content=msg)
+    await game.message.clear_reactions()
+
+async def draw_remisscreen(game):
+    msg = "Draw between " + game.red_player.mention + " and " + game.yellow_player.mention + " :expressionless: !\n\n"
     msg += game_string(game)
 
     await game.message.edit(content=msg)

@@ -31,6 +31,14 @@ class Game:
         else:
             return self.yellow_player.mention if self.yellow_player != None else "Yellow"
 
+    def check_draw(self):
+        empty_count = 0
+        for x in range(self.width):
+            for y in range(self.height):
+                if self._board[x][y] == Empty:
+                    empty_count += 1
+        return empty_count == 0
+
     def check_win(self):
         # Check for vertical wins
         for x in range(self.width):
