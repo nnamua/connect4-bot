@@ -23,9 +23,15 @@ async def start(ctx):
     msg = ctx.message
     author = msg.author
     channel = msg.channel
+    mentions = msg.mentions
+    if len(mentions) > 1:
+        await ctx.send("```To start a game, type '-start'. To challenge someone, mention him: '-start @User'")
+        return
 
     game = Game()
     game.yellow_player = author
+    if len(mentions) == 1:
+        game.red_player = mentions[0]
     game.channel = channel
     games.append(game)
 
