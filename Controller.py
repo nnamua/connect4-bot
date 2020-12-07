@@ -64,7 +64,7 @@ async def on_reaction_add(reaction, user):
     await reaction.remove(user)
 
 async def draw_winscreen(game):
-    msg = "Player " + game.get_winner() + " has won! :tada:\n\n"
+    msg = "Player " + game.get_winner() + " has won! :tada: (" + game.get_loser() + " has lost..)\n\n"
     msg += game_string(game)
 
     await game.message.edit(content=msg)
