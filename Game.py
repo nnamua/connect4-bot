@@ -146,7 +146,10 @@ class Game:
         return self._current_player == Yellow
 
     def get_winner(self):
-        return self.red_player if self.winner == Red else self.yellow_player
+        if self.check_win():
+            return self.red_player if self.winner == Red else self.yellow_player
+        else:
+            return None
 
     def get_loser(self):
         return self.red_player if self.winner == Yellow else self.yellow_player

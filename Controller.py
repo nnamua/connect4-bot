@@ -5,6 +5,7 @@ import os, discord, sys, asyncio, Stats
 from dotenv import load_dotenv
 from discord.ext import commands
 from Game import Game
+from BotGame import BotGame
 
 load_dotenv()
 # Use DISCORD_TEST_TOKEN for testing!
@@ -29,10 +30,14 @@ async def start(ctx):
         await ctx.send("```To start a game, type '-start'. To challenge someone, mention him: '-start @User'")
         return
 
-    game = Game()
+    opponent = mentions[0] if len(mentions) == 1 else None
+    if opponent != None and opponent.id == bot.user.id:
+        game = BotGame()
+    else:
+        game = Game()
+
     game.yellow_player = author
-    if len(mentions) == 1:
-        game.red_player = mentions[0]
+    game.red_player = opponent
     game.channel = channel
     games.append(game)
 
@@ -62,25 +67,32 @@ async def on_reaction_add(reaction, user):
         # Check if its the users turn, and if yes, place the stone
         if game.is_user_turn(user):
             game.place(num)
-            if game.check_win():
-                await draw_winscreen(game)
-                try:
-                    del games[games.index(game)]
-                    Stats.add_match(game.red_player, game.yellow_player, game.get_winner(), game.turns)
-                except:
-                    pass
-            elif game.check_draw():
-                await draw_remisscreen(game)
-                try:
-                    del games[games.index(game)]
-                    Stats.add_match(game.red_player, game.yellow_player, None, game.turns)
-                except:
-                    pass
-            else:
-                await draw_game(game)
+            await after_move(game)
         
     if message.author.id == bot.user.id:
         await reaction.remove(user)
+
+async def after_move(game):
+    if game.check_win():
+        await draw_winscreen(game)
+        finished_game(game)
+
+    elif game.check_draw():
+        await draw_remisscreen(game)
+        finished_game(game)
+
+    else:
+        if isinstance(game, BotGame) and game.is_red_turn():
+            game.bot_place()
+            await after_move(game)
+        else:
+            await draw_game(game)
+
+
+def finished_game(game):
+    if game in games:
+        del games[games.index(game)]
+        Stats.add_match(game.red_player, game.yellow_player, game.get_winner(), game.turns)
 
 async def draw_winscreen(game):
     msg = "Player " + game.get_winner().mention + " has won! :tada: (" + game.get_loser().mention + " has lost ... )\n\n"
