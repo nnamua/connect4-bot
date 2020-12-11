@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
-import os, discord, sys, asyncio
+import os, discord, sys, asyncio, Stats
 
 from dotenv import load_dotenv
 from discord.ext import commands
 from Game import Game
 
 load_dotenv()
-token = os.getenv("DISCORD_TOKEN")
+# Use DISCORD_TEST_TOKEN for testing!
+token = os.getenv("DISCORD_TEST_TOKEN")
 
 bot = commands.Bot(command_prefix="-")
 
@@ -37,6 +38,16 @@ async def start(ctx):
 
     await draw_game(game)
 
+@bot.command(name="stats", help="Retrieves stats for given user(s).")
+async def stats(ctx):
+    mentions = ctx.message.mentions
+    if len(mentions) < 1:
+        await ctx.send("```Please mention at least one user: '-stats @User1'```")
+        return
+
+    for mention in mentions:
+        await ctx.send(Stats.get_stats(mention))
+
 @bot.event
 async def on_reaction_add(reaction, user):
     # Ignore own reactions
@@ -55,22 +66,24 @@ async def on_reaction_add(reaction, user):
                 await draw_winscreen(game)
                 try:
                     del games[games.index(game)]
+                    Stats.add_match(game.red_player, game.yellow_player, game.get_winner(), game.turns)
                 except:
                     pass
             elif game.check_draw():
                 await draw_remisscreen(game)
                 try:
                     del games[games.index(game)]
+                    Stats.add_match(game.red_player, game.yellow_player, None, game.turns)
                 except:
                     pass
             else:
                 await draw_game(game)
         
-
-    await reaction.remove(user)
+    if message.author.id == bot.user.id:
+        await reaction.remove(user)
 
 async def draw_winscreen(game):
-    msg = "Player " + game.get_winner() + " has won! :tada: (" + game.get_loser() + " has lost..)\n\n"
+    msg = "Player " + game.get_winner().mention + " has won! :tada: (" + game.get_loser().mention + " has lost ... )\n\n"
     msg += game_string(game)
 
     await game.message.edit(content=msg)

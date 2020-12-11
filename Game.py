@@ -14,6 +14,7 @@ class Game:
         self.message = None
         self.channel = None
         self.winner = None
+        self.turns = 0
 
         # Generate the starting board
         for x in range(width):
@@ -32,12 +33,7 @@ class Game:
             return self.yellow_player.mention if self.yellow_player != None else "Yellow"
 
     def check_draw(self):
-        empty_count = 0
-        for x in range(self.width):
-            for y in range(self.height):
-                if self._board[x][y] == Empty:
-                    empty_count += 1
-        return empty_count == 0
+        return self.turns == self.width * self.height
 
     def check_win(self):
         # Check for vertical wins
@@ -112,10 +108,14 @@ class Game:
         return False
 
     def place(self, col_nr):
+        if col_nr < 0 or col_nr >= self.width:
+            return False
+
         col = self._board[col_nr]
         for i in range(self.height - 1, -1, -1):
             if (col[i] == Empty):
                 col[i] = self._current_player
+                self.turns += 1
                 self._next_player()
                 return True
         return False
@@ -146,7 +146,7 @@ class Game:
         return self._current_player == Yellow
 
     def get_winner(self):
-        return self.red_player.mention if self.winner == Red else self.yellow_player.mention
+        return self.red_player if self.winner == Red else self.yellow_player
 
     def get_loser(self):
-        return self.red_player.mention if self.winner == Yellow else self.yellow_player.mention
+        return self.red_player if self.winner == Yellow else self.yellow_player

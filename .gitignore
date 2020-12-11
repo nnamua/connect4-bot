@@ -1,3 +1,6 @@
+# Stat file
+stats.json
+
 # API tokens
 .env
 
