@@ -9,7 +9,7 @@ from BotGame import BotGame
 
 load_dotenv()
 # Use DISCORD_TEST_TOKEN for testing!
-token = os.getenv("DISCORD_TEST_TOKEN")
+token = os.getenv("DISCORD_TOKEN")
 
 bot = commands.Bot(command_prefix="-")
 
