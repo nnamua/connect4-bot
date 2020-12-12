@@ -24,14 +24,16 @@ def _format_stats(user, stats):
 
     # Add values
     matches = stats["matches"]
+    id_string = f"#{user.id}"
     wins = 0
     losses = 0
     turns = []
     for match in matches:
-        if match["win"]:
+        if id_string == match["winner"]:
             wins += 1
-        else:
+        elif match["winner"] != "":
             losses += 1
+
         turns.append(match["turns"])
 
     avg_turns = round(sum(turns) / len(turns))
@@ -52,28 +54,22 @@ def get_stats(user):
     else:
         return _format_stats(user, stats[str(user.id)])
 
-def add_match(player1, player2, winner, turns):
-    if player1.id == player2.id:
+def add_match(game):
+    if game.red_player.id == game.yellow_player.id:
         return
 
     # Create match statistics
-    player1_match = { "win"      : player1.id == winner.id,
-                      "turns"    : turns,
-                      "opponent" : f"#{player2.id}" }
-
-    player2_match = { "win"      : player2.id == winner.id,
-                      "turns"    : turns,
-                      "opponent" : f"#{player1.id}" }
+    match_stats = game.to_dict()
 
     # Add to json file
     stats = _get_dict()
-    if str(player1.id) not in stats:
-        stats = add_user(player1, stats)
-    if str(player2.id) not in stats:
-        stats = add_user(player2, stats)
+    if str(game.red_player.id) not in stats:
+        stats = add_user(game.red_player, stats)
+    if str(game.yellow_player.id) not in stats:
+        stats = add_user(game.yellow_player, stats)
 
-    stats[str(player1.id)]["matches"].append(player1_match)
-    stats[str(player2.id)]["matches"].append(player2_match)
+    stats[str(game.red_player.id)]["matches"].append(match_stats)
+    stats[str(game.yellow_player.id)]["matches"].append(match_stats)
 
     _save_dict(stats)
 
@@ -82,7 +78,3 @@ def add_user(user, stats):
     new_user = { "matches" : [] }
     stats[str(user.id)] = new_user
     return stats
-
-class Player():
-    def __init__(self, id):
-        self.id = id

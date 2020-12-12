@@ -4,7 +4,7 @@ import os, discord, sys, asyncio, Stats
 
 from dotenv import load_dotenv
 from discord.ext import commands
-from Game import Game
+from Game import Game, Red, Yellow, Empty
 from BotGame import BotGame
 
 load_dotenv()
@@ -14,6 +14,7 @@ token = os.getenv("DISCORD_TOKEN")
 bot = commands.Bot(command_prefix="-")
 
 number_emojis = [ "1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣" ]
+loading_emoji = "<a:3339_loading:787418484082606091>"
 games = []
 
 @bot.event
@@ -83,7 +84,8 @@ async def after_move(game):
 
     else:
         if isinstance(game, BotGame) and game.is_red_turn():
-            game.bot_place()
+            await draw_game(game, bot_turn=True)
+            game.bot_place(mode="minimax-alphabeta")
             await after_move(game)
         else:
             await draw_game(game)
@@ -92,7 +94,7 @@ async def after_move(game):
 def finished_game(game):
     if game in games:
         del games[games.index(game)]
-        Stats.add_match(game.red_player, game.yellow_player, game.get_winner(), game.turns)
+        Stats.add_match(game)
 
 async def draw_winscreen(game):
     msg = "Player " + game.get_winner().mention + " has won! :tada: (" + game.get_loser().mention + " has lost ... )\n\n"
@@ -108,13 +110,16 @@ async def draw_remisscreen(game):
     await game.message.edit(content=msg)
     await game.message.clear_reactions()
 
-async def draw_game(game):
-    msg = "Waiting for " + game.get_player() + "'s ("
-    if game.is_red_turn():
-        msg += ":red_circle:"
+async def draw_game(game, bot_turn=False):
+    if bot_turn:
+        msg = "Waiting for the computer to place " + loading_emoji + " \n\n"
     else:
-        msg += ":yellow_circle:"
-    msg += ")move ...\n\n"
+        msg = "Waiting for " + game.get_player_name() + "'s ("
+        if game.is_red_turn():
+            msg += ":red_circle:"
+        else:
+            msg += ":yellow_circle:"
+        msg += ")move ...\n\n"
     msg += game_string(game)
 
     if game.message == None:
@@ -128,9 +133,9 @@ async def draw_game(game):
 
 def game_string(game):
     string = ""
-    for y in range(game.height):
+    for y in range(game.get_height()):
         line = ""
-        for x in range(game.width):
+        for x in range(game.get_width()):
             if game.is_red(x,y):
                 line += ":red_circle:"
             elif game.is_yellow(x,y):
