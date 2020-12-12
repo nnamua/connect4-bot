@@ -89,7 +89,6 @@ def evaluate_window(window, player, negative):
 
     scores = ( float("inf"), 15, 6, 2, 0 )
     stones_needed = window.count(Empty)
-    if stones_needed == 0: print(f"{window=}, {stones_needed=}")
     score = scores[stones_needed]
     return -0.5 * score if negative else score
         
