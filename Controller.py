@@ -9,12 +9,13 @@ from BotGame import BotGame
 
 load_dotenv()
 # Use DISCORD_TEST_TOKEN for testing!
-token = os.getenv("DISCORD_TOKEN")
+token = os.getenv("DISCORD_TEST_TOKEN")
 
 bot = commands.Bot(command_prefix="-")
 
 number_emojis = [ "1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣" ]
-loading_emoji = "<a:3339_loading:787418484082606091>"
+loading_emoji = "<a:3859_Loading:787421781182120006>"
+#loading_emoji = "<a:3339_loading:787418484082606091>"
 games = []
 
 @bot.event

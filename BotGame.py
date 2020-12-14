@@ -1,5 +1,6 @@
 from Game import Game, Red, Yellow, Empty, is_draw, get_winner, GameState
 from random import randint, choice
+import pydot
 
 class BotGame(Game):
     """
@@ -7,21 +8,30 @@ class BotGame(Game):
         Red player is controlled by computer.
     """
 
+    graph = pydot.Dot(graph_type="graph")
+
     def bot_place(self, mode="random"):
         if mode == "random":
             super().place(choice(self.state.get_legal_actions()))
         elif mode == "minimax":
             super().place(self.minimax(True, self.state, 5)[0])
         elif mode == "minimax-alphabeta":
-            super().place(self.minimax_ab(True, self.state, 6, -float("inf"), float("inf"))[0])
+            print("Running minimax algorithm for the following state: ")
+            print(str(self.state))
+            action, cost = self.minimax_ab(True, self.state, 6, -float("inf"), float("inf"))
+            print(f"Taking action '{action}' with cost {cost}.")
+            super().place(action)
+            self.graph.write_png("minimax_graph.png")
+            self.graph = pydot.Dot(graph_type="graph")
         else:
             raise Exception()
 
     def minimax_ab(self, maximize, state, depth, alpha, beta):
         actions = state.get_legal_actions()
+        player = Red if maximize else Yellow
         
         if depth == 0 or is_terminal(state):
-            return (None, evaluate(state))
+            return (None, evaluate(state, player))
 
         if maximize:
             value = -float("inf")
@@ -29,6 +39,10 @@ class BotGame(Game):
             for action in actions:
                 successor = state.generate_successor(action)
                 new_value = self.minimax_ab(False, successor, depth - 1, alpha, beta)[1]
+                this_node = pydot.Node(str(state), fontname="Consolas")
+                child_node = pydot.Node(str(successor), fontname="Consolas")
+                edge = pydot.Edge(this_node, child_node, label=new_value)
+                self.graph.add_edge(edge)
                 if new_value > value:
                     value = new_value
                     chosen_action = action
@@ -53,9 +67,10 @@ class BotGame(Game):
 
     def minimax(self, maximize, state, depth):
         actions = state.get_legal_actions()
+        player = Red if maximize else Yellow
         
         if depth == 0 or is_terminal(state):
-            return (None, evaluate(state))
+            return (None, evaluate(state, player))
 
         if maximize:
             value = -float("inf")
@@ -93,8 +108,7 @@ def evaluate_window(window, player, negative):
     return -0.5 * score if negative else score
         
 
-def evaluate(state):
-    player = state._current_player
+def evaluate(state, player):
     board = state._board
     if get_winner(state) == player:
         return float("inf")
@@ -151,8 +165,38 @@ def evaluate(state):
 
 if __name__ == "__main__":
     state = GameState()
-    state = state.generate_successor(0)
-    state = state.generate_successor(1)
-    state = state.generate_successor(0)
+    state = state.generate_successor(3)
     state = state.generate_successor(2)
-    print(evaluate(state))
+
+    state = state.generate_successor(2)
+    state = state.generate_successor(3)
+
+    state = state.generate_successor(3)
+    state = state.generate_successor(3)
+
+    state = state.generate_successor(5)
+    state = state.generate_successor(3)
+
+    state = state.generate_successor(6)
+    state = state.generate_successor(4)
+
+    state = state.generate_successor(4)
+    state = state.generate_successor(3)
+
+    state = state.generate_successor(4)
+    state = state.generate_successor(4)
+
+    state = state.generate_successor(4)
+    state = state.generate_successor(4)
+
+    state = state.generate_successor(1)
+
+    state1 = state.generate_successor(6)
+    state2 = state.generate_successor(2)
+    state3 = state.generate_successor(0)
+
+    b = BotGame()
+    print(b.minimax_ab(True, state, 1, -float("inf"), float("inf")))
+    with open("test.txt", "w+") as testfile:
+        testfile.write(str(b.graph))
+    b.graph.write_png("minimax_graph.png")

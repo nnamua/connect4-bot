@@ -135,6 +135,18 @@ class GameState:
                 return True
         return False
 
+    def __str__(self):
+        stone_chars = { Red : "R", Yellow : "Y", Empty : "   " }
+        string = ""
+        for y in range(self.height):
+            row = [ self._board[x][y] for x in range(self.width)]
+            string += "|"
+            for x in range(self.width):
+                stone = self._board[x][y]
+                string += stone_chars[stone] + "|"
+            string += r"\n"
+        return string
+
 
 class Game:
     def __init__(self):
