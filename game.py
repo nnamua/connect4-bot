@@ -99,6 +99,7 @@ MINIMAX_AB = "MINIMAX_AB"
 class BotGame(Game):
 
     def __init__(self, mode=RANDOM, depth=4):
+        super().__init__()
         self.mode = mode
         self.depth = depth
 

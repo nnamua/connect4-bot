@@ -14,7 +14,8 @@ token = os.getenv("DISCORD_TOKEN")
 bot = commands.Bot(command_prefix="-")
 
 numberEmojis = [ "1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣" ]
-loadingEmoji = "<a:3859_Loading:787421781182120006>"
+loadingEmoji = "<a:3339_loading:787418484082606091>"
+#loadingEmoji = "<a:3859_Loading:787421781182120006>"
 games = []
 
 @bot.event
