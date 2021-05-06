@@ -23,6 +23,8 @@ def minimax(maximize: bool, state: GameState, depth: int):
             if newValue > value:
                 value = newValue
                 chosenAction = action
+            elif newValue == value: # select randomly if both have same value
+                chosenAction = rand.choice((chosenAction, action))
         return (chosenAction, value)
     
     else:
@@ -34,6 +36,8 @@ def minimax(maximize: bool, state: GameState, depth: int):
             if newValue < value:
                 value = newValue
                 chosenAction = action
+            elif newValue == value:
+                chosenAction = rand.choice((chosenAction, action))
         return (chosenAction, value)
 
 # Calculates an optimal action with the minimax algorithm.
@@ -53,6 +57,8 @@ def minimaxAB(maximize: bool, state: GameState, depth: int, alpha=-float("inf"),
             if newValue > value:
                 value = newValue
                 chosenAction = action
+            elif newValue == value:
+                chosenAction = rand.choice((chosenAction, action))
             alpha = max(alpha, value)
             if alpha >= beta:
                 break
@@ -67,6 +73,8 @@ def minimaxAB(maximize: bool, state: GameState, depth: int, alpha=-float("inf"),
             if newValue < value:
                 value = newValue
                 chosenAction = action
+            elif newValue == value:
+                chosenAction = rand.choice((chosenAction, action))
             beta = min(beta, value)
             if alpha >= beta:
                 break
