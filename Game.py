@@ -1,241 +1,116 @@
-from discord.utils import _string_width
-from copy import deepcopy
-
-
-Red = "red"
-Yellow = "yellow"
-Empty = None
-
-def is_draw(state):
-    return state.turns == state.width * state.height
-
-def get_winner(state):
-    # Check for vertical wins
-    for x in range(state.width):
-        score = 0
-        last_stone = None
-        for y in range(state.height):
-            stone = state._board[x][y]
-            if stone != last_stone:
-                score = 1
-                last_stone = stone
-            elif stone != Empty:
-                score += 1
-                if score >= 4:
-                    return stone
-
-    # Check for horizontal wins
-    for y in range(state.height):
-        score = 0
-        last_stone = None
-        for x in range(state.width):
-            stone = state._board[x][y]
-            if stone != last_stone:
-                score = 1
-                last_stone = stone
-            elif stone != Empty:
-                score += 1
-                if score >= 4:
-                    return stone
-
-    # Check for diagonal wins (two different diagonal possibilities)
-    # (1,1,0) -> (delta_x, delta_y, startx when iterating y)
-    for direction in ((1, 1,0), (-1,1,state.width-1)):
-        for startx in range(state.width):
-            y = 0
-            x = startx
-            score = 0
-            last_stone = None
-            while x >= 0 and x < state.width and y >= 0 and y < state.height:
-                stone = state._board[x][y]
-                if stone != last_stone:
-                    score = 1
-                    last_stone = stone
-                elif stone != Empty:
-                    score += 1
-                    if score >= 4:
-                        return stone
-
-                x += direction[0]
-                y += direction[1]
-
-        for starty in range(state.height):
-            y = starty
-            x = direction[2]
-            score = 0
-            last_stone = None
-            while x >= 0 and x < state.width and y >= 0 and y < state.height:
-                stone = state._board[x][y]
-                if stone != last_stone:
-                    score = 1
-                    last_stone = stone
-                elif stone != Empty:
-                    score += 1
-                    if score >= 4:
-                        return stone
-
-                x += direction[0]
-                y += direction[1]
-
-    return None
-
-class GameState:
-    def __init__(self, width=7, height=6):
-        self._board = []
-        self.width = width
-        self.height = height
-        self._current_player = Yellow
-        self.turns = 0
-        
-        # Generate the starting board
-        for x in range(width):
-            col = []
-            for y in range(height):
-                col.append(Empty)
-            self._board.append(col)
-
-    def get_legal_actions(self):
-        possible = []
-        for x in range(self.width):
-            col = self._board[x]
-            if col.count(Empty) > 0:
-                possible.append(x)
-        return possible
-
-    def generate_successor(self, col_nr):
-        successor = GameState(width=self.width, height=self.height)
-        successor._board = deepcopy(self._board)
-        successor._current_player = self._current_player
-
-        col_ok = successor._place(col_nr)
-        return successor if col_ok else None
-
-    def count(self, stone):
-        n = 0
-        for x in range(self.width):
-            for y in range(self.height):
-                if self._board[x][y] == stone:
-                    n += 1
-
-        return n
-
-    def _next_player(self):
-        self._current_player = Red if self._current_player == Yellow else Yellow
-
-    def _place(self, col_nr):
-        if col_nr < 0 or col_nr >= self.width:
-            return False
-
-        col = self._board[col_nr]
-        for i in range(self.height - 1, -1, -1):
-            if (col[i] == Empty):
-                col[i] = self._current_player
-                self.turns += 1
-                self._next_player()
-                return True
-        return False
-
-    def __str__(self):
-        stone_chars = { Red : "R", Yellow : "Y", Empty : "   " }
-        string = ""
-        for y in range(self.height):
-            row = [ self._board[x][y] for x in range(self.width)]
-            string += "|"
-            for x in range(self.width):
-                stone = self._board[x][y]
-                string += stone_chars[stone] + "|"
-            string += r"\n"
-        return string
-
+from stones import Stone, Red, Yellow, Empty
+from state import GameState, IllegalActionException
+from algorithms import random, minimax, minimaxAB
 
 class Game:
     def __init__(self):
         self.state = GameState()
-        
-        self.red_player = None
-        self.yellow_player = None
-        self.message = None
-        self.channel = None
-        self.winner = None
-        self.turns = 0
 
-    def get_height(self):
-        return self.state.height
+        # Initialize discord data
+        self.redPlayer    = None
+        self.yellowPlayer = None
+        self.message      = None
+        self.channel      = None
+        self.winner       = None
 
-    def get_width(self):
-        return self.state.width
+    # Returns the height of the board
+    def height(self):
+        return self.state.board.height
 
-    def place(self, col_nr):
-        successor = self.state.generate_successor(col_nr)
-        if successor != None:
-            self.state = successor
-            return True
-        else:
+    # Returns the width of the board
+    def width(self):
+        return self.state.board.width
+
+    # Places a stone on the board
+    def place(self, action: int):
+        try:
+            successor = self.state.generateSuccessor(action)
+        except IllegalActionException:
             return False
 
-    def get_player_name(self):
-        if self.state._current_player == Red:
-            return self.red_player.mention if self.red_player != None else "Red"
-        else:
-            return self.yellow_player.mention if self.yellow_player != None else "Yellow"
+        self.state = successor
+        return True
 
-    def check_win(self):
-        return get_winner(self.state) != None
+    # Returns true if current player is Yellow
+    def isYellowTurn(self):
+        return self.state.currentPlayer == Yellow
 
-    def check_draw(self):
-        return is_draw(self.state)
+    # Returns true if current player is Red
+    def isRedTurn(self):
+        return self.state.currentPlayer == Red
 
-    def is_user_turn(self, user):
-        if self.is_yellow_turn() and self.yellow_player == user:
+    # Returns true if the discord user is the current player
+    # Will set the player for red, if unitialized
+    def isUserTurn(self, user: Stone):
+        if self.isYellowTurn() and self.yellowPlayer == user:
             return True
-        elif self.is_red_turn():
-            if self.red_player == None:
-                self.red_player = user
+        else:
+            if self.redPlayer == None:
+                self.redPlayer = user
                 return True
             else:
-                return self.red_player == user
+                return self.redPlayer == user
 
-    def is_red(self, x, y):
-        return self.state._board[x][y] == Red
+    # Returns the mention of the current player
+    def currentPlayerString(self):
+        if self.state.currentPlayer == Red:
+            return self.redPlayer.mention if self.redPlayer != None else "Red"
+        else:
+            return self.yellowPlayer.mention if self.yellowPlayer != None else "Yellow"
 
-    def is_yellow(self, x, y):
-        return self.state._board[x][y] == Yellow
-
-    def is_empty(self, x, y):
-        return self.state._board[x][y] == Empty
-
-    def is_red_turn(self):
-        return self.state._current_player == Red
-
-    def is_yellow_turn(self):
-        return self.state._current_player == Yellow
-
-    def get_winner(self):
-        winner = get_winner(self.state)
-        if self.check_win():
-            return self.red_player if winner == Red else self.yellow_player
+    # Returns the winning discord user (None if no winner)
+    def getWinner(self):
+        winner = self.state.winner()
+        if winner == Red:
+            return self.redPlayer
+        elif winner == Yellow:
+            return self.yellowPlayer
         else:
             return None
 
-    def get_loser(self):
-        winner = get_winner(self.state)
-        if self.check_win():
-            return self.red_player if winner == Yellow else self.yellow_player
+    # Returns the losing discord user (None if no winner)
+    def getLoser(self):
+        winner = self.state.winner()
+        if winner == Red:
+            return self.yellowPlayer
+        elif winner == Yellow:
+            return self.redPlayer
         else:
             return None
-    
-    def to_dict(self):
-        game_dict = dict()
-        stone_chars = { Yellow : "y", Red : "r", Empty : "e" }
-        board_string = ""
-        for x in range(self.state.width):
-            for y in range(self.state.height):
-                board_string += stone_chars[self.state._board[x][y]]
-        game_dict["board"] = board_string
-        game_dict["red_player"] = f"#{self.red_player.id}"
-        game_dict["yellow_player"] = f"#{self.yellow_player.id}"
-        game_dict["winner"] = "" if self.get_winner() == None else f"#{self.get_winner().id}"
-        game_dict["turns"] = self.state.turns
-        game_dict["width"] = self.state.width
-        game_dict["height"] = self.state.height
-        return game_dict
+
+    # Returns the object as a dictionary
+    def toDict(self):
+        gameDict = dict()
+        boardString = [ stone for stone in self.state.board.flatten() ]
+        gameDict["board"] = boardString
+        gameDict["redPlayer"] = f"#{self.redPlayer.id}"
+        gameDict["yellowPlayer"] = f"#{self.yellowPlayer.id}"
+        gameDict["winner"] = "" if self.getWinner() == None else f"#{self.getWinner().id}"
+        gameDict["turns"] = self.state.turns
+        gameDict["width"] = self.state.board.width
+        gameDict["height"] = self.state.board.height
+        return gameDict
+        
+# BotGame modes
+RANDOM     = "RANDOM"
+MINIMAX    = "MINIMAX"
+MINIMAX_AB = "MINIMAX_AB"
+
+class BotGame(Game):
+
+    def __init__(self, mode=RANDOM, depth=4):
+        self.mode = mode
+        self.depth = depth
+
+    # Represents a move by the computer
+    def botPlace(self):
+        print(f"Calculating move using mode={self.mode} with a depth of {self.depth}.")
+
+        if self.mode == MINIMAX:
+            super().place(minimax(True, self.state, self.depth)[0])
+
+        elif self.mode == MINIMAX_AB:
+            super().place(minimaxAB(True, self.state, self.depth)[0])
+
+        else:
+            super().place(random(self.state))

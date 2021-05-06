@@ -4,8 +4,8 @@ import os, discord, sys, asyncio, Stats
 
 from dotenv import load_dotenv
 from discord.ext import commands
-from Game import Game, Red, Yellow, Empty
-from BotGame import BotGame
+from game import Game, BotGame, RANDOM, MINIMAX, MINIMAX_AB
+from stones import Stone, Red, Yellow, Empty
 
 load_dotenv()
 # Use DISCORD_TEST_TOKEN for testing!
@@ -13,48 +13,53 @@ token = os.getenv("DISCORD_TEST_TOKEN")
 
 bot = commands.Bot(command_prefix="-")
 
-number_emojis = [ "1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣" ]
-loading_emoji = "<a:3859_Loading:787421781182120006>"
-#loading_emoji = "<a:3339_loading:787418484082606091>"
+numberEmojis = [ "1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣" ]
+loadingEmoji = "<a:3859_Loading:787421781182120006>"
 games = []
 
 @bot.event
 async def on_ready():
     print(f"Bot online with id={bot.user.id}.")
 
+"""
+    Main function, is used to start a game of connect 4.
+    Can be used in 3 main ways:
+        '-start' will start a match, so that any user can join as an opponent
+        '-start @User' will start a match where the mentioned user is the opponent
+        '-start @ThisBot' starts a match against the computer
+"""
 @bot.command(name="start", help="Starts a game of connect 4.")
 async def start(ctx):
-    msg = ctx.message
-    author = msg.author
-    channel = msg.channel
-    mentions = msg.mentions
-    if len(mentions) > 1:
-        await ctx.send("```To start a game, type '-start'. To challenge someone, mention him: '-start @User'")
-        return
+    message  = ctx.message
+    author   = message.author
+    channel  = message.channel
+    mentions = message.mentions
 
+    # Check if there is 0 or 1 mention
+    if len(mentions) > 1:
+        await ctx.send(monospace("To start a game, type '-start'. To challenge someone, mention him: '-start @User'"))
+
+    # If there are no mentions, any user can join as the opponent
     opponent = mentions[0] if len(mentions) == 1 else None
     if opponent != None and opponent.id == bot.user.id:
-        game = BotGame()
+        game = BotGame(mode=MINIMAX_AB)
     else:
         game = Game()
 
-    game.yellow_player = author
-    game.red_player = opponent
+    game.yellowPlayer = author
+    game.redPlayer = opponent
     game.channel = channel
     games.append(game)
 
-    await draw_game(game)
+    await drawGame(game)
 
-@bot.command(name="stats", help="Retrieves stats for given user(s).")
-async def stats(ctx):
-    mentions = ctx.message.mentions
-    if len(mentions) < 1:
-        await ctx.send("```Please mention at least one user: '-stats @User1'```")
-        return
-
-    for mention in mentions:
-        await ctx.send(Stats.get_stats(mention))
-
+"""
+    This function will be called everytime a user reacts
+    to a message on the channel. Ignore the reaction if it
+    doesn't belong to a current game or the emoji is invalid.
+    Otherwise, check if the user matches the current player,
+    and if yes, try to place the stone.
+"""
 @bot.event
 async def on_reaction_add(reaction, user):
     # Ignore own reactions
@@ -62,84 +67,109 @@ async def on_reaction_add(reaction, user):
         return
 
     message = reaction.message
-    game = get_game(message)
-    num = get_input(reaction)
-    # Check if reaction is valid and belongs to a valid game
+    game    = getGame(message)
+    num     = getInput(reaction)
+
+    # Check if the reaction is valid and belongs to a valid game
     if game != None and num != -1:
         # Check if its the users turn, and if yes, place the stone
-        if game.is_user_turn(user):
+        if game.isUserTurn(user):
             game.place(num)
-            await after_move(game)
-        
+            await afterMove(game)
+
     if message.author.id == bot.user.id:
         await reaction.remove(user)
 
-async def after_move(game):
-    if game.check_win():
-        await draw_winscreen(game)
-        finished_game(game)
+"""
+    This function is called after every move.
+    If there is a winner (or a draw), the finishedGame function will be called, and the final screen displayed.
+    If the game is against the computer, and the computers turn, a move is calculated.
+    Otherwise, the game will simply be drawn, to await new input.
+    
+"""
+async def afterMove(game):
+    if game.state.winner() != None:
+        await drawWinScreen(game)
+        finishedGame(game)
 
-    elif game.check_draw():
-        await draw_remisscreen(game)
-        finished_game(game)
+    elif game.state.isDraw():
+        await drawRemisScreen(game)
+        finishedGame(game)
 
     else:
-        if isinstance(game, BotGame) and game.is_red_turn():
-            await draw_game(game, bot_turn=True)
-            game.bot_place(mode="minimax-alphabeta")
-            await after_move(game)
+        # Its the computers turn to place
+        if isinstance(game, BotGame) and game.isRedTurn():
+            await drawGame(game, botTurn=True)
+            game.botPlace()
+            await afterMove(game)
         else:
-            await draw_game(game)
+            await drawGame(game)
 
-
-def finished_game(game):
+"""
+    This function is called after a win/draw of any player.
+    It removes the game from the games list, and stores the information for later stat retrieval.
+"""
+def finishedGame(game):
     if game in games:
         del games[games.index(game)]
-        Stats.add_match(game)
+        # TODO: Add stats here
 
-async def draw_winscreen(game):
-    msg = "Player " + game.get_winner().mention + " has won! :tada: (" + game.get_loser().mention + " has lost ... )\n\n"
-    msg += game_string(game)
-
-    await game.message.edit(content=msg)
-    await game.message.clear_reactions()
-
-async def draw_remisscreen(game):
-    msg = "Draw between " + game.red_player.mention + " and " + game.yellow_player.mention + " :expressionless: !\n\n"
-    msg += game_string(game)
+"""
+    Draws a winscreen, and removes all reactions.
+"""
+async def drawWinScreen(game):
+    msg = "Player " + game.getWinner().mention + " has won! :tada: (" + game.getLoser().mention + " has lost ... )\n\n"
+    msg += gameString(game)
 
     await game.message.edit(content=msg)
     await game.message.clear_reactions()
 
-async def draw_game(game, bot_turn=False):
-    if bot_turn:
-        msg = "Waiting for the computer to place " + loading_emoji + " \n\n"
+"""
+    Draws a remis screen, and removes all reactions.
+"""
+async def drawRemisScreen(game):
+    msg = "Draw between " + game.redPlayer.mention + " and " + game.yellowPlayer.mention + " :expressionless: !\n\n"
+    msg += gameString(game)
+
+    await game.message.edit(content=msg)
+    await game.message.clear_reactions()
+
+"""
+    Draws the game. It will try to edit game.message,
+    and if that doesn't exist, it will create a new message
+    and assign it. 
+"""
+async def drawGame(game, botTurn=False):
+    if botTurn:
+        msg = "Waiting for the computer to place " + loadingEmoji + "\n\n"
     else:
-        msg = "Waiting for " + game.get_player_name() + "'s ("
-        if game.is_red_turn():
+        msg = "Waiting for " + game.currentPlayerString() + "'s ("
+        if game.state.currentPlayer == Red:
             msg += ":red_circle:"
         else:
             msg += ":yellow_circle:"
-        msg += ")move ...\n\n"
-    msg += game_string(game)
+        msg += ") move ...\n\n"
+    msg += gameString(game)
 
     if game.message == None:
         message = await game.channel.send(msg)
         game.message = message
-        for emoji in number_emojis:
+        for emoji in numberEmojis:
             await message.add_reaction(emoji)
     else:
         await game.message.edit(content=msg)
 
-
-def game_string(game):
+"""
+    Returns a string representation of the game's board.
+"""
+def gameString(game):
     string = ""
-    for y in range(game.get_height()):
+    for y in range(game.height()):
         line = ""
-        for x in range(game.get_width()):
-            if game.is_red(x,y):
+        for x in range(game.width()):
+            if game.state.board[x][y] == Red:
                 line += ":red_circle:"
-            elif game.is_yellow(x,y):
+            elif game.state.board[x][y] == Yellow:
                 line += ":yellow_circle:"
             else:
                 line += ":white_circle:"
@@ -147,19 +177,32 @@ def game_string(game):
         string += line + "\n"
     return string
 
-
-def get_game(message):
+"""
+    Looks up the given message in the games list. Return the 
+    respective game or None if not found.
+"""
+def getGame(message):
     for game in games:
         if message.id == game.message.id:
             return game
     return None
 
-def get_input(reaction):
-    for i in range(len(number_emojis)):
-        if number_emojis[i] == reaction.emoji:
+"""
+    Converts the reaction emoji into a number that can be used
+    as an action. Returns -1 if the emoji is invalid.
+"""
+def getInput(reaction):
+    for i in range(len(numberEmojis)):
+        if numberEmojis[i] == reaction.emoji:
             return i
     return -1
 
+"""
+    Converts the given string to monospace for sending
+    as a discord text message by adding ``` pre- and suffixes.
+"""
+def monospace(string: str):
+    return "```" + string + "```"
 
+# Run the bot
 bot.run(token)
-
