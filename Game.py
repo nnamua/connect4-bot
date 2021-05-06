@@ -104,7 +104,7 @@ class BotGame(Game):
 
     # Represents a move by the computer
     def botPlace(self):
-        print(f"Calculating move using mode={self.mode} with a depth of {self.depth}.")
+        #print(f"Calculating move using mode={self.mode} with a depth of {self.depth}.")
 
         if self.mode == MINIMAX:
             super().place(minimax(True, self.state, self.depth)[0])

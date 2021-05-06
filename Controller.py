@@ -9,7 +9,7 @@ from stones import Stone, Red, Yellow, Empty
 
 load_dotenv()
 # Use DISCORD_TEST_TOKEN for testing!
-token = os.getenv("DISCORD_TEST_TOKEN")
+token = os.getenv("DISCORD_TOKEN")
 
 bot = commands.Bot(command_prefix="-")
 
@@ -38,6 +38,7 @@ async def start(ctx):
     # Check if there is 0 or 1 mention
     if len(mentions) > 1:
         await ctx.send(monospace("To start a game, type '-start'. To challenge someone, mention him: '-start @User'"))
+        await ctx.send(monospace("If you want to play against an AI, mention the bot instead."))
 
     # If there are no mentions, any user can join as the opponent
     opponent = mentions[0] if len(mentions) == 1 else None
